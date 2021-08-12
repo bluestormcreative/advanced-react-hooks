@@ -6,7 +6,7 @@ import React, { useReducer } from 'react';
 function countReducer(state, {type, step}) {
   switch (type) {
     case 'INCREMENT':
-      return { 'count': state.count + step };
+      return { ...state, 'count': state.count + step };
 
     default:
       return {
