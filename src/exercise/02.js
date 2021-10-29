@@ -11,7 +11,7 @@ import {
 } from '../pokemon'
 
 // 🐨 this is going to be our generic asyncReducer
-function useAsync(state, action) {
+function asyncReducer(state, action) {
   switch (action.type) {
     case 'pending': {
       // 🐨 replace "pokemon" with "data"
@@ -31,24 +31,11 @@ function useAsync(state, action) {
   }
 }
 
-function PokemonInfo({pokemonName}) {
-  // 🐨 move both the useReducer and useEffect hooks to a custom hook called useAsync
-  // here's how you use it:
-  // const state = useAsync(
-  //   () => {
-  //     if (!pokemonName) {
-  //       return
-  //     }
-  //     return fetchPokemon(pokemonName)
-  //   },
-  //   {status: pokemonName ? 'pending' : 'idle'},
-  //   [pokemonName],
-  // )
-  // 🐨 so your job is to create a useAsync function that makes this work.
-  const [state, dispatch] = React.useReducer(useAsync, {
-    status: pokemonName ? 'pending' : 'idle',
+function useAsync(callback) {
+  const [state, dispatch] = React.useReducer(asyncReducer, {
+    status: state.pokemonName ? 'pending' : 'idle',
     // 🐨 this will need to be "data" instead of "pokemon"
-    pokemon: null,
+    data: null,
     error: null,
   })
 
@@ -59,11 +46,11 @@ function PokemonInfo({pokemonName}) {
     //   return
     // }
     // then you can dispatch and handle the promise etc...
-    if (!pokemonName) {
+    if (!state.pokemonName) {
       return
     }
     dispatch({type: 'pending'})
-    fetchPokemon(pokemonName).then(
+    fetchPokemon(state.pokemonName).then(
       pokemon => {
         dispatch({type: 'resolved', pokemon})
       },
@@ -74,10 +61,25 @@ function PokemonInfo({pokemonName}) {
     // 🐨 you'll accept dependencies as an array and pass that here.
     // 🐨 because of limitations with ESLint, you'll need to ignore
     // the react-hooks/exhaustive-deps rule. We'll fix this in an extra credit.
-  }, [pokemonName])
+  }, [state.pokemonName])
+}
 
+function PokemonInfo({pokemonName}) {
+  // 🐨 move both the useReducer and useEffect hooks to a custom hook called useAsync
+  // here's how you use it:
+  const state = useAsync(
+    () => {
+      if (!pokemonName) {
+        return
+      }
+      return fetchPokemon(pokemonName)
+    },
+    {status: pokemonName ? 'pending' : 'idle'},
+    [pokemonName],
+  );
+  // 🐨 so your job is to create a useAsync function that makes this work.
   // 🐨 this will change from "pokemon" to "data"
-  const {pokemon, status, error} = state
+  const {data, status, error} = state
 
   if (status === 'idle' || !pokemonName) {
     return 'Submit a pokemon'
