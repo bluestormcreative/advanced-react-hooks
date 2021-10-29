@@ -31,13 +31,13 @@ function asyncReducer(state, action) {
   }
 }
 
-function useAsync(callback) {
+function useAsync(initialState) {
   const [state, dispatch] = React.useReducer(asyncReducer, {
-    status: state.pokemonName ? 'pending' : 'idle',
-    // 🐨 this will need to be "data" instead of "pokemon"
+    status: 'idle',
     data: null,
     error: null,
-  })
+    ...initialState,
+  });
 
   React.useEffect(() => {
     // 💰 this first early-exit bit is a little tricky, so let me give you a hint:
