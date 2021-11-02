@@ -11,19 +11,19 @@ import {
 } from '../pokemon'
 
 // 🐨 this is going to be our generic asyncReducer
-function pokemonInfoReducer(state, action) {
+function asyncReducer(state, action) {
   switch (action.type) {
     case 'pending': {
       // 🐨 replace "pokemon" with "data"
-      return {status: 'pending', pokemon: null, error: null}
+      return {status: 'pending', data: null, error: null}
     }
     case 'resolved': {
       // 🐨 replace "pokemon" with "data" (in the action too!)
-      return {status: 'resolved', pokemon: action.pokemon, error: null}
+      return {status: 'resolved', data: action.data, error: null}
     }
     case 'rejected': {
       // 🐨 replace "pokemon" with "data"
-      return {status: 'rejected', pokemon: null, error: action.error}
+      return {status: 'rejected', data: null, error: action.error}
     }
     default: {
       throw new Error(`Unhandled action type: ${action.type}`)
@@ -31,53 +31,82 @@ function pokemonInfoReducer(state, action) {
   }
 }
 
-function PokemonInfo({pokemonName}) {
-  // 🐨 move both the useReducer and useEffect hooks to a custom hook called useAsync
-  // here's how you use it:
-  // const state = useAsync(
-  //   () => {
-  //     if (!pokemonName) {
-  //       return
-  //     }
-  //     return fetchPokemon(pokemonName)
-  //   },
-  //   {status: pokemonName ? 'pending' : 'idle'},
-  //   [pokemonName],
-  // )
-  // 🐨 so your job is to create a useAsync function that makes this work.
-  const [state, dispatch] = React.useReducer(pokemonInfoReducer, {
-    status: pokemonName ? 'pending' : 'idle',
-    // 🐨 this will need to be "data" instead of "pokemon"
-    pokemon: null,
-    error: null,
-  })
+function useDispatchRef(dispatch) {
+  // Set up a ref to check lifecycle status.
+  const isMounted = React.useRef(false);
 
   React.useEffect(() => {
-    // 💰 this first early-exit bit is a little tricky, so let me give you a hint:
-    // const promise = asyncCallback()
-    // if (!promise) {
-    //   return
-    // }
-    // then you can dispatch and handle the promise etc...
-    if (!pokemonName) {
-      return
+    // we are mounted, we can run the dispatch stuff.
+    isMounted.current = true;
+
+    console.log('we are mounted');
+    return () => {
+      isMounted.current = false;
+      console.log('we are unmounted');
     }
+  });
+
+  // Memoize this so we don't end up with exhaustive deps error.
+  return React.useCallback((...args) => { // Pass in any args that the function needs.
+      isMounted.current ? dispatch(...args) : void 0; // If we are mounted, run it, otherwise void.
+    },
+    [dispatch],
+  );
+}
+
+function useAsync(initialState) {
+  // Get the updated state (and dispatch function);
+  const [state, reducerDispatch] = React.useReducer(asyncReducer, {
+    status: 'idle',
+    data: null,
+    error: null,
+    ...initialState,
+  });
+
+  const dispatch = useDispatchRef(reducerDispatch);
+
+  // Destructure state so we can return just what we need.
+  const {data, error, status} = state;
+
+  // Add this run method that can we control memoization of.
+  // useCallback makes this function consistent over time.
+  const runFunc = React.useCallback((promise) => {
     dispatch({type: 'pending'})
-    fetchPokemon(pokemonName).then(
-      pokemon => {
-        dispatch({type: 'resolved', pokemon})
+    promise.then(
+      data => {
+        dispatch({type: 'resolved', data})
       },
       error => {
         dispatch({type: 'rejected', error})
       },
-    )
-    // 🐨 you'll accept dependencies as an array and pass that here.
-    // 🐨 because of limitations with ESLint, you'll need to ignore
-    // the react-hooks/exhaustive-deps rule. We'll fix this in an extra credit.
-  }, [pokemonName])
+    );
+  }, [dispatch]); // Our dispatch function comes from our reducer and will never change, so this is fine.
 
-  // 🐨 this will change from "pokemon" to "data"
-  const {pokemon, status, error} = state
+  // Return the goods.
+  return {
+    error,
+    status,
+    data,
+    runFunc,
+  };
+}
+
+function PokemonInfo({pokemonName}) {
+  const state = useAsync({
+    status: pokemonName ? 'pending' : 'idle',
+  });
+
+  const { data: pokemon, status, error, runFunc } = state;
+
+  React.useEffect(() => {
+    if (!pokemonName) { // If there's no pokemon, don't call the runFunc and bail.
+      return;
+    }
+    // Otherwise, we have a pokemon name so let's get that data with our runFunc
+    runFunc(fetchPokemon(pokemonName)) // Remember pokemonName is passed in as props, which is part of why we need to memoize.
+  }, [pokemonName, runFunc]); // Our memoized function to run on the returned fetch promise.
+
+  console.log('POKEMON DATA: ', pokemon);
 
   if (status === 'idle' || !pokemonName) {
     return 'Submit a pokemon'
