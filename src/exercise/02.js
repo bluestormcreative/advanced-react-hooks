@@ -31,14 +31,39 @@ function asyncReducer(state, action) {
   }
 }
 
+function useDispatchRef(dispatch) {
+  // Set up a ref to check lifecycle status.
+  const isMounted = React.useRef(false);
+
+  React.useEffect(() => {
+    // we are mounted, we can run the dispatch stuff.
+    isMounted.current = true;
+
+    console.log('we are mounted');
+    return () => {
+      isMounted.current = false;
+      console.log('we are unmounted');
+    }
+  });
+
+  // Memoize this so we don't end up with exhaustive deps error.
+  return React.useCallback((...args) => { // Pass in any args that the function needs.
+      isMounted.current ? dispatch(...args) : void 0; // If we are mounted, run it, otherwise void.
+    },
+    [dispatch],
+  );
+}
+
 function useAsync(initialState) {
   // Get the updated state (and dispatch function);
-  const [state, dispatch] = React.useReducer(asyncReducer, {
+  const [state, reducerDispatch] = React.useReducer(asyncReducer, {
     status: 'idle',
     data: null,
     error: null,
     ...initialState,
   });
+
+  const dispatch = useDispatchRef(reducerDispatch);
 
   // Destructure state so we can return just what we need.
   const {data, error, status} = state;
@@ -55,7 +80,7 @@ function useAsync(initialState) {
         dispatch({type: 'rejected', error})
       },
     );
-  }, []);
+  }, [dispatch]); // Our dispatch function comes from our reducer and will never change, so this is fine.
 
   // Return the goods.
   return {
@@ -67,24 +92,11 @@ function useAsync(initialState) {
 }
 
 function PokemonInfo({pokemonName}) {
-  // Set up a ref to check lifecycle status.
-  const isMounted = React.useRef(false);
   const state = useAsync({
     status: pokemonName ? 'pending' : 'idle',
   });
 
   const { data: pokemon, status, error, runFunc } = state;
-
-  React.useEffect(() => {
-    // we are mounted, run the dispatch stuff.
-    isMounted.current = true;
-
-    console.log('we are mounted');
-    return () => {
-      isMounted.current = false;
-      console.log('we are unmounted');
-    }
-  });
 
   React.useEffect(() => {
     if (!pokemonName) { // If there's no pokemon, don't call the runFunc and bail.
