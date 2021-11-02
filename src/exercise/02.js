@@ -31,7 +31,8 @@ function asyncReducer(state, action) {
   }
 }
 
-function useAsync(asyncCallback, initialState) {
+function useAsync(initialState) {
+  // Get the updated state (and dispatch function);
   const [state, dispatch] = React.useReducer(asyncReducer, {
     status: 'idle',
     data: null,
@@ -39,12 +40,11 @@ function useAsync(asyncCallback, initialState) {
     ...initialState,
   });
 
-  React.useEffect(() => {
-    const promise = asyncCallback();
-    if (!promise) {
-      return
-    }
+  // Destructure state so we can return just what we need.
+  const [data, error, status] = state;
 
+  // Add this run method that can we control memoization of.
+  const runFunc = React.useCallback((promise) => {
     dispatch({type: 'pending'})
     promise.then(
       data => {
@@ -53,34 +53,36 @@ function useAsync(asyncCallback, initialState) {
       error => {
         dispatch({type: 'rejected', error})
       },
-    )
+    );
+  }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [asyncCallback]);
-
-  return state;
+  // Return the goods.
+  return {
+    error,
+    status,
+    data,
+    runFunc,
+  };
 }
 
 function PokemonInfo({pokemonName}) {
-  const asyncCallback = React.useCallback(() => {
-      if (!pokemonName) {
-        return
-      }
-      return fetchPokemon(pokemonName)
-    }, [pokemonName]);
+  const state = useAsync({
+    status: pokemonName ? 'pending' : 'idle',
+  });
 
-  const state = useAsync(
-    asyncCallback,
-    {status: pokemonName ? 'pending' : 'idle'},
-    [pokemonName],
-  );
+  const { data: pokemon, status, error, runFunc } = state;
 
-  const {data: pokemon, status, error} = state;
+  React.useEffect(() => {
+    if (!pokemonName) {
+      return
+    }
+    runFunc(fetchPokemon(pokemonName))
+  }, [pokemonName, runFunc]); // Our memoized function to run on the returned fetch promise.
 
-  if (status === 'idle' || !pokemonName) {
+  if (status === 'idle' || !pokemon.pokemonName) {
     return 'Submit a pokemon'
   } else if (status === 'pending') {
-    return <PokemonInfoFallback name={pokemonName} />
+    return <PokemonInfoFallback name={pokemon.pokemonName} />
   } else if (status === 'rejected') {
     throw error
   } else if (status === 'resolved') {
