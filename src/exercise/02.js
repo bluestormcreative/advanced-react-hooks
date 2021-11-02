@@ -41,7 +41,7 @@ function useAsync(initialState) {
   });
 
   // Destructure state so we can return just what we need.
-  const [data, error, status] = state;
+  const {data, error, status} = state;
 
   // Add this run method that can we control memoization of.
   const runFunc = React.useCallback((promise) => {
@@ -76,13 +76,15 @@ function PokemonInfo({pokemonName}) {
     if (!pokemonName) {
       return
     }
-    runFunc(fetchPokemon(pokemonName))
+    runFunc(fetchPokemon(pokemonName)) // Remember pokemonName is passed in as props, which is part of why we need to memoize.
   }, [pokemonName, runFunc]); // Our memoized function to run on the returned fetch promise.
 
-  if (status === 'idle' || !pokemon.pokemonName) {
+  console.log(pokemon);
+
+  if (status === 'idle' || !pokemonName) {
     return 'Submit a pokemon'
   } else if (status === 'pending') {
-    return <PokemonInfoFallback name={pokemon.pokemonName} />
+    return <PokemonInfoFallback name={pokemonName} />
   } else if (status === 'rejected') {
     throw error
   } else if (status === 'resolved') {
