@@ -74,7 +74,7 @@ function PokemonInfo({pokemonName}) {
 
   React.useEffect(() => {
     if (!pokemonName) { // If there's no pokemon, don't call the runFunc and bail.
-      return
+      return;
     }
     // Otherwise, we have a pokemon name so let's get that data with our runFunc
     runFunc(fetchPokemon(pokemonName)) // Remember pokemonName is passed in as props, which is part of why we need to memoize.
