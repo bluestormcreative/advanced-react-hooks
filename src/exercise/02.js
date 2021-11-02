@@ -44,6 +44,7 @@ function useAsync(initialState) {
   const {data, error, status} = state;
 
   // Add this run method that can we control memoization of.
+  // useCallback makes this function consistent over time.
   const runFunc = React.useCallback((promise) => {
     dispatch({type: 'pending'})
     promise.then(
