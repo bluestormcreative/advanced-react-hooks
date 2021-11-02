@@ -67,11 +67,24 @@ function useAsync(initialState) {
 }
 
 function PokemonInfo({pokemonName}) {
+  // Set up a ref to check lifecycle status.
+  const isMounted = React.useRef(false);
   const state = useAsync({
     status: pokemonName ? 'pending' : 'idle',
   });
 
   const { data: pokemon, status, error, runFunc } = state;
+
+  React.useEffect(() => {
+    // we are mounted, run the dispatch stuff.
+    isMounted.current = true;
+
+    console.log('we are mounted');
+    return () => {
+      isMounted.current = false;
+      console.log('we are unmounted');
+    }
+  });
 
   React.useEffect(() => {
     if (!pokemonName) { // If there's no pokemon, don't call the runFunc and bail.
@@ -81,7 +94,7 @@ function PokemonInfo({pokemonName}) {
     runFunc(fetchPokemon(pokemonName)) // Remember pokemonName is passed in as props, which is part of why we need to memoize.
   }, [pokemonName, runFunc]); // Our memoized function to run on the returned fetch promise.
 
-  console.log(pokemon);
+  console.log('POKEMON DATA: ', pokemon);
 
   if (status === 'idle' || !pokemonName) {
     return 'Submit a pokemon'
